@@ -1,0 +1,52 @@
+{
+  "name": "@onchainledger/sdk",
+  "version": "1.0.0",
+  "description": "Official SDK for OnChainLedger Token Intelligence API - Solana token security analysis",
+  "main": "src/index.js",
+  "types": "src/types.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/types.d.ts"
+    }
+  },
+  "keywords": [
+    "solana",
+    "token",
+    "security",
+    "rug-pull",
+    "honeypot",
+    "x402",
+    "defi",
+    "crypto",
+    "trust-score",
+    "scam-detection"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tferezin/onchainledger"
+  },
+  "homepage": "https://onchainledger-production.up.railway.app",
+  "bugs": {
+    "url": "https://github.com/tferezin/onchainledger/issues"
+  },
+  "author": "OnChainLedger",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {},
+  "peerDependencies": {
+    "@solana/web3.js": "^1.87.0"
+  },
+  "peerDependenciesMeta": {
+    "@solana/web3.js": {
+      "optional": true
+    }
+  },
+  "files": [
+    "src",
+    "README.md"
+  ]
+}

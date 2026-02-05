@@ -1,0 +1,11 @@
+# Ignore everything except what we need
+*
+
+# Include these
+!src/
+!src/**
+!README.md
+!package.json
+
+# Ignore examples in npm package
+examples/
