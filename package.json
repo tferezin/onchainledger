@@ -4,9 +4,13 @@
   "description": "Solana token intelligence API - TrustScore analysis",
   "type": "module",
   "main": "src/index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js"
+    "dev": "node --watch src/index.js",
+    "build": "echo 'No build step required'"
   },
   "keywords": ["solana", "token", "analysis", "trustscore"],
   "author": "",
