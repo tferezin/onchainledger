@@ -17,8 +17,13 @@ const freeScoreRateLimit = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
-  }
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip || 'unknown';
+  },
+  validate: { xForwardedForHeader: false }
 });
 
 // Cache for free scores (30 min TTL)

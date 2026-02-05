@@ -15,8 +15,13 @@ export const rateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => {
     // Use X-Forwarded-For for Railway/proxy deployments
-    return req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip;
-  }
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+      return forwarded.split(',')[0].trim();
+    }
+    return req.ip || 'unknown';
+  },
+  validate: { xForwardedForHeader: false }
 });
 
 // Helmet for secure HTTP headers
