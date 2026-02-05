@@ -1,11 +1,14 @@
 export const WEIGHTS = {
-  authority: 0.25,
-  holders: 0.20,
-  liquidity: 0.15,
-  honeypot: 0.10,
+  authority: 0.20,
+  holders: 0.15,
+  liquidity: 0.12,
+  honeypot: 0.08,
   age: 0.05,
-  token2022: 0.15,
-  lpLock: 0.10
+  token2022: 0.10,
+  lpLock: 0.05,
+  insider: 0.10,
+  walletCluster: 0.08,
+  priceHistory: 0.07
 };
 
 export const GRADES = [

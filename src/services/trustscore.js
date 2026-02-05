@@ -5,6 +5,9 @@ import { analyzeHoneypot } from '../analyzers/honeypot.js';
 import { analyzeAge, getTokenMetadata } from '../analyzers/metadata.js';
 import { analyzeLpLock } from '../analyzers/lplock.js';
 import { analyzeToken2022 } from '../analyzers/token2022.js';
+import { analyzeInsider } from '../analyzers/insider.js';
+import { analyzeWalletCluster } from '../analyzers/walletCluster.js';
+import { analyzePriceHistory } from '../analyzers/priceHistory.js';
 import { GRADES } from '../utils/constants.js';
 
 function getGrade(score) {
@@ -25,7 +28,10 @@ export async function calculateTrustScore(tokenAddress) {
     honeypotResult,
     ageResult,
     token2022Result,
-    lpLockResult
+    lpLockResult,
+    insiderResult,
+    walletClusterResult,
+    priceHistoryResult
   ] = await Promise.all([
     getTokenMetadata(tokenAddress),
     analyzeAuthority(tokenAddress),
@@ -34,7 +40,10 @@ export async function calculateTrustScore(tokenAddress) {
     analyzeHoneypot(tokenAddress),
     analyzeAge(tokenAddress),
     analyzeToken2022(tokenAddress),
-    analyzeLpLock(tokenAddress)
+    analyzeLpLock(tokenAddress),
+    analyzeInsider(tokenAddress),
+    analyzeWalletCluster(tokenAddress),
+    analyzePriceHistory(tokenAddress)
   ]);
 
   const totalWeighted =
@@ -44,7 +53,10 @@ export async function calculateTrustScore(tokenAddress) {
     honeypotResult.weighted +
     ageResult.weighted +
     token2022Result.weighted +
-    lpLockResult.weighted;
+    lpLockResult.weighted +
+    insiderResult.weighted +
+    walletClusterResult.weighted +
+    priceHistoryResult.weighted;
 
   const { grade, verdict } = getGrade(totalWeighted);
 
@@ -55,7 +67,10 @@ export async function calculateTrustScore(tokenAddress) {
     ...honeypotResult.risks,
     ...ageResult.risks,
     ...token2022Result.risks,
-    ...lpLockResult.risks
+    ...lpLockResult.risks,
+    ...insiderResult.risks,
+    ...walletClusterResult.risks,
+    ...priceHistoryResult.risks
   ];
 
   const positiveFactors = [];
@@ -80,6 +95,15 @@ export async function calculateTrustScore(tokenAddress) {
   if (lpLockResult.details.locked) {
     positiveFactors.push('LP tokens are locked');
   }
+  if (insiderResult.score === 100) {
+    positiveFactors.push('No insider trading detected');
+  }
+  if (walletClusterResult.details.clustersDetected === 0) {
+    positiveFactors.push('No wallet clusters detected');
+  }
+  if (priceHistoryResult.details.majorDrops === 0) {
+    positiveFactors.push('Stable price history');
+  }
 
   return {
     token: tokenMetadata,
@@ -95,7 +119,10 @@ export async function calculateTrustScore(tokenAddress) {
       honeypot: honeypotResult,
       age: ageResult,
       token2022: token2022Result,
-      lpLock: lpLockResult
+      lpLock: lpLockResult,
+      insider: insiderResult,
+      walletCluster: walletClusterResult,
+      priceHistory: priceHistoryResult
     },
     riskFactors: allRisks,
     positiveFactors

@@ -59,3 +59,45 @@ export async function getTokenSupply(tokenAddress) {
     return null;
   }
 }
+
+export async function getSignaturesForAddress(address, options = {}) {
+  try {
+    const response = await axios.post(
+      `${HELIUS_RPC_URL}/?api-key=${HELIUS_API_KEY}`,
+      {
+        jsonrpc: '2.0',
+        id: 'get-signatures',
+        method: 'getSignaturesForAddress',
+        params: [
+          address,
+          {
+            limit: options.limit || 100,
+            before: options.before || undefined,
+            until: options.until || undefined
+          }
+        ]
+      },
+      { timeout: 15000 }
+    );
+    return response.data.result || [];
+  } catch (error) {
+    console.error('Helius getSignaturesForAddress error:', error.message);
+    return [];
+  }
+}
+
+export async function getParsedTransactions(signatures) {
+  try {
+    const response = await axios.post(
+      `${HELIUS_API_URL}/transactions/?api-key=${HELIUS_API_KEY}`,
+      {
+        transactions: signatures
+      },
+      { timeout: 30000 }
+    );
+    return response.data || [];
+  } catch (error) {
+    console.error('Helius getParsedTransactions error:', error.message);
+    return [];
+  }
+}
