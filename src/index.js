@@ -1,9 +1,13 @@
 import 'dotenv/config';
 import { createServer } from './server.js';
 import { validateConfig, config } from './utils/config.js';
+import { startTelegramBot, stopTelegramBot } from './bot/telegram.js';
 
 // Validate configuration before starting
 validateConfig();
+
+// Start Telegram bot if configured
+const telegramBot = startTelegramBot();
 
 const PORT = config.port;
 
@@ -12,11 +16,13 @@ const app = createServer();
 // Graceful shutdown handling
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
+  stopTelegramBot();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT received. Shutting down gracefully...');
+  stopTelegramBot();
   process.exit(0);
 });
 
