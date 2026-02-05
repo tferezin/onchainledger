@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import swaggerUi from 'swagger-ui-express';
+import { swaggerSpec } from './config/swagger.js';
 
 // Security middleware
 import { securityHeaders, rateLimiter, hppProtection, corsOptions, requestSizeLimit } from './middleware/security.js';
@@ -51,6 +53,12 @@ export function createServer() {
   app.use(express.static(path.join(__dirname, '../public')));
 
   // 10. Routes
+  // Swagger documentation - free
+  app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'OnChainLedger API Docs'
+  }));
+
   // Health check - free, no payment required
   app.use('/health', healthRouter);
 
