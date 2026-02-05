@@ -1,9 +1,11 @@
 export const WEIGHTS = {
-  authority: 0.30,
-  holders: 0.25,
-  liquidity: 0.20,
-  honeypot: 0.15,
-  age: 0.10
+  authority: 0.25,
+  holders: 0.20,
+  liquidity: 0.15,
+  honeypot: 0.10,
+  age: 0.05,
+  token2022: 0.15,
+  lpLock: 0.10
 };
 
 export const GRADES = [

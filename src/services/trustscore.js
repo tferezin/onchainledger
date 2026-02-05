@@ -3,6 +3,8 @@ import { analyzeHolders } from '../analyzers/holders.js';
 import { analyzeLiquidity } from '../analyzers/liquidity.js';
 import { analyzeHoneypot } from '../analyzers/honeypot.js';
 import { analyzeAge, getTokenMetadata } from '../analyzers/metadata.js';
+import { analyzeLpLock } from '../analyzers/lplock.js';
+import { analyzeToken2022 } from '../analyzers/token2022.js';
 import { GRADES } from '../utils/constants.js';
 
 function getGrade(score) {
@@ -21,14 +23,18 @@ export async function calculateTrustScore(tokenAddress) {
     holdersResult,
     liquidityResult,
     honeypotResult,
-    ageResult
+    ageResult,
+    token2022Result,
+    lpLockResult
   ] = await Promise.all([
     getTokenMetadata(tokenAddress),
     analyzeAuthority(tokenAddress),
     analyzeHolders(tokenAddress),
     analyzeLiquidity(tokenAddress),
     analyzeHoneypot(tokenAddress),
-    analyzeAge(tokenAddress)
+    analyzeAge(tokenAddress),
+    analyzeToken2022(tokenAddress),
+    analyzeLpLock(tokenAddress)
   ]);
 
   const totalWeighted =
@@ -36,7 +42,9 @@ export async function calculateTrustScore(tokenAddress) {
     holdersResult.weighted +
     liquidityResult.weighted +
     honeypotResult.weighted +
-    ageResult.weighted;
+    ageResult.weighted +
+    token2022Result.weighted +
+    lpLockResult.weighted;
 
   const { grade, verdict } = getGrade(totalWeighted);
 
@@ -45,7 +53,9 @@ export async function calculateTrustScore(tokenAddress) {
     ...holdersResult.risks,
     ...liquidityResult.risks,
     ...honeypotResult.risks,
-    ...ageResult.risks
+    ...ageResult.risks,
+    ...token2022Result.risks,
+    ...lpLockResult.risks
   ];
 
   const positiveFactors = [];
@@ -64,6 +74,12 @@ export async function calculateTrustScore(tokenAddress) {
   if (ageResult.details.ageHours >= 168) {
     positiveFactors.push('Established token (7+ days)');
   }
+  if (token2022Result.score === 100) {
+    positiveFactors.push('No dangerous Token-2022 extensions');
+  }
+  if (lpLockResult.details.locked) {
+    positiveFactors.push('LP tokens are locked');
+  }
 
   return {
     token: tokenMetadata,
@@ -77,7 +93,9 @@ export async function calculateTrustScore(tokenAddress) {
       holders: holdersResult,
       liquidity: liquidityResult,
       honeypot: honeypotResult,
-      age: ageResult
+      age: ageResult,
+      token2022: token2022Result,
+      lpLock: lpLockResult
     },
     riskFactors: allRisks,
     positiveFactors
