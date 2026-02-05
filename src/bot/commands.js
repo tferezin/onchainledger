@@ -128,7 +128,23 @@ F (0-24) - Likely Scam
   await bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
 }
 
-// /score command
+// Get risk level from score (teaser - no exact score shown)
+function getRiskLevel(score) {
+  if (score >= 80) return 'LOW';
+  if (score >= 60) return 'MEDIUM';
+  if (score >= 40) return 'HIGH';
+  return 'CRITICAL';
+}
+
+// Get risk emoji
+function getRiskEmoji(riskLevel) {
+  if (riskLevel === 'LOW') return '🟢';
+  if (riskLevel === 'MEDIUM') return '🟡';
+  if (riskLevel === 'HIGH') return '🟠';
+  return '🔴';
+}
+
+// /score command - TEASER MODE (hides exact score)
 export async function handleScore(bot, msg, tokenInput) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -159,24 +175,34 @@ export async function handleScore(bot, msg, tokenInput) {
     const symbol = result.token?.symbol || resolved.symbol || 'Unknown';
     const score = result.trustScore?.score || 0;
     const grade = result.trustScore?.grade || 'F';
-    const verdict = result.trustScore?.verdict || 'Unknown';
+    const riskFactors = result.riskFactors || [];
 
-    const scoreEmoji = getScoreEmoji(score);
+    // TEASER: Show grade and risk level, NOT exact score
+    const riskLevel = getRiskLevel(score);
+    const riskEmoji = getRiskEmoji(riskLevel);
     const gradeEmoji = getGradeEmoji(grade);
+    const flagsCount = riskFactors.length;
+    const tradeable = score >= 50;
 
     const responseMessage = `
-🔍 *${symbol} TrustScore Analysis*
+🔍 *${symbol} TrustScore Preview*
 
 ━━━━━━━━━━━━━━━━━━━━━
-📊 Score: *${score}/100* ${scoreEmoji}
 🏆 Grade: *${grade}* ${gradeEmoji}
-${verdict === 'VERY HIGH CONFIDENCE' ? '✅' : verdict === 'HIGH CONFIDENCE' ? '✅' : verdict === 'MODERATE CONFIDENCE' ? '⚠️' : '❌'} Verdict: *${verdict}*
+⚠️ Risk Level: *${riskLevel}* ${riskEmoji}
+📊 Score: *??/100* (unlock for $0.01)
+${tradeable ? '✅ Tradeable: Yes' : '❌ Tradeable: No'}
+${flagsCount > 0 ? `🚩 Flags: ${flagsCount} detected` : '✅ No major flags detected'}
 ━━━━━━━━━━━━━━━━━━━━━
 
-${score >= 70 ? '✅ This token appears relatively safe to trade.' : score >= 50 ? '⚠️ Exercise caution with this token.' : '❌ High risk - avoid this token.'}
+${riskLevel === 'LOW' ? '✅ This token appears relatively safe.' : riskLevel === 'MEDIUM' ? '⚠️ Exercise caution with this token.' : '❌ High risk - proceed carefully.'}
 
-💡 For full risk breakdown, use our API:
-https://onchainledger-production.up.railway.app
+💰 *Unlock full analysis for $0.01:*
+• Exact score (XX/100)
+• Detailed risk breakdown
+• 10 specialized analyzers
+
+🌐 https://onchainledger-production.up.railway.app
 `;
 
     // Delete loading message and send result
@@ -189,7 +215,7 @@ https://onchainledger-production.up.railway.app
   }
 }
 
-// /compare command
+// /compare command - TEASER MODE (hides exact scores)
 export async function handleCompare(bot, msg, args) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -230,25 +256,34 @@ export async function handleCompare(bot, msg, args) {
     const grade1 = result1.trustScore?.grade || 'F';
     const grade2 = result2.trustScore?.grade || 'F';
 
-    const winner = score1 >= score2 ? symbol1 : symbol2;
-    const winnerScore = Math.max(score1, score2);
-    const scoreDiff = Math.abs(score1 - score2);
+    // TEASER: Show grades and risk levels, NOT exact scores
+    const riskLevel1 = getRiskLevel(score1);
+    const riskLevel2 = getRiskLevel(score2);
+
+    // Determine safer choice by grade comparison
+    const gradeOrder = { 'A+': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'F': 1 };
+    const winner = (gradeOrder[grade1] || 0) >= (gradeOrder[grade2] || 0) ? symbol1 : symbol2;
+    const winnerGrade = (gradeOrder[grade1] || 0) >= (gradeOrder[grade2] || 0) ? grade1 : grade2;
 
     const responseMessage = `
-📊 *Token Comparison*
+📊 *Token Comparison Preview*
 
-┌─────────────────────────┐
-│ ${symbol1.padEnd(8)} │ ${score1.toString().padStart(3)}/100 │ ${grade1} ${getGradeEmoji(grade1)} │
-│ ${symbol2.padEnd(8)} │ ${score2.toString().padStart(3)}/100 │ ${grade2} ${getGradeEmoji(grade2)} │
-└─────────────────────────┘
+┌──────────────────────────────┐
+│ ${symbol1.padEnd(8)} │ ??/100 │ ${grade1} ${getGradeEmoji(grade1)} │ ${riskLevel1} │
+│ ${symbol2.padEnd(8)} │ ??/100 │ ${grade2} ${getGradeEmoji(grade2)} │ ${riskLevel2} │
+└──────────────────────────────┘
 
-🏆 *Safer Choice:* ${winner}
-📈 Score difference: ${scoreDiff > 0 ? '+' : ''}${scoreDiff} points
+🏆 *Safer Choice:* ${winner} (Grade ${winnerGrade})
+📈 Grade comparison: ${grade1} vs ${grade2}
 
-${scoreDiff >= 20 ? `${winner} is significantly safer.` : scoreDiff >= 10 ? `${winner} is notably safer.` : 'Both tokens have similar risk profiles.'}
+${grade1 === grade2 ? 'Both tokens have similar safety grades.' : `${winner} appears safer based on grade.`}
 
-💡 Full comparison at our API:
-https://onchainledger-production.up.railway.app
+💰 *Unlock full comparison for $0.015:*
+• Exact scores (XX/100)
+• Strengths & weaknesses
+• AI recommendation
+
+🌐 https://onchainledger-production.up.railway.app
 `;
 
     await bot.deleteMessage(chatId, loadingMsg.message_id);

@@ -18,7 +18,7 @@ import analyzeRouter from './routes/analyze.js';
 import scoreRouter from './routes/score.js';
 import batchRouter from './routes/batch.js';
 import compareRouter from './routes/compare.js';
-import { createX402Middleware, createBatchX402Middleware, createCompareX402Middleware } from './middleware/x402.js';
+import { createX402Middleware, createBatchX402Middleware } from './middleware/x402.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,9 +71,8 @@ export function createServer() {
   const batchX402 = createBatchX402Middleware();
   app.post('/analyze/batch', batchX402, batchRouter);
 
-  // Compare endpoint
-  const compareX402 = createCompareX402Middleware();
-  app.post('/compare', compareX402, compareRouter);
+  // Compare endpoint - handles payment internally (free teaser or paid full)
+  app.use('/compare', compareRouter);
 
   // x402 payment middleware for analyze routes
   const x402 = createX402Middleware();

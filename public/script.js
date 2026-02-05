@@ -10,7 +10,7 @@ const demoError = document.getElementById('demoError');
 const tokenChips = document.querySelectorAll('.token-chip');
 const copyBtns = document.querySelectorAll('.copy-btn');
 
-// Analyze Token
+// Analyze Token - Uses FREE /score endpoint (teaser)
 async function analyzeToken(tokenAddress) {
   // Show loading
   analyzeBtn.classList.add('loading');
@@ -18,35 +18,16 @@ async function analyzeToken(tokenAddress) {
   demoError.classList.add('hidden');
 
   try {
-    const response = await fetch(`${API_BASE}/analyze/${tokenAddress}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // For demo, we'll use a placeholder payment header
-        // In production, real payment would be required
-        'X-Payment': 'demo-mode-no-payment-required'
-      }
-    });
-
+    // Use free /score endpoint (teaser mode)
+    const response = await fetch(`${API_BASE}/score/${tokenAddress}`);
     const data = await response.json();
-
-    if (response.status === 402) {
-      // Payment required - show payment info for demo
-      showResult({
-        token: { symbol: 'DEMO', name: 'Payment Required' },
-        trustScore: { score: '--', grade: 'x402', verdict: 'Payment Required' },
-        breakdown: {},
-        riskFactors: ['This endpoint requires x402 payment in production'],
-        positiveFactors: []
-      });
-      return;
-    }
 
     if (data.error) {
       throw new Error(data.message || data.error);
     }
 
-    showResult(data);
+    // Transform teaser response to display format
+    showTeaserResult(data);
 
   } catch (error) {
     showError(error.message || 'Failed to analyze token');
@@ -55,7 +36,88 @@ async function analyzeToken(tokenAddress) {
   }
 }
 
-// Show Result
+// Show Teaser Result (from /score endpoint)
+function showTeaserResult(data) {
+  const { token, preview, teaser, upgrade } = data;
+
+  // Token info
+  document.getElementById('tokenSymbol').textContent = token?.symbol || 'Unknown';
+  document.getElementById('tokenName').textContent = token?.name || 'Unknown Token';
+
+  // Trust Score - TEASER MODE (hide exact score)
+  const scoreEl = document.querySelector('.score-value');
+  const gradeEl = document.getElementById('scoreGrade');
+
+  scoreEl.textContent = '??'; // Hidden score
+  gradeEl.textContent = preview?.grade || '-';
+
+  // Remove old grade classes
+  gradeEl.className = 'score-grade';
+
+  // Add grade color class
+  const grade = (preview?.grade || '').charAt(0).toUpperCase();
+  if (grade === 'A') gradeEl.classList.add('grade-a');
+  else if (grade === 'B') gradeEl.classList.add('grade-b');
+  else if (grade === 'C') gradeEl.classList.add('grade-c');
+  else gradeEl.classList.add('grade-d');
+
+  // Verdict based on risk level
+  const riskLevel = preview?.riskLevel || 'UNKNOWN';
+  const verdict = riskLevel === 'LOW' ? 'APPEARS SAFE' :
+                  riskLevel === 'MEDIUM' ? 'MODERATE RISK' :
+                  riskLevel === 'HIGH' ? 'HIGH RISK' : 'CRITICAL RISK';
+  document.getElementById('resultVerdict').textContent = verdict;
+
+  // Breakdown - TEASER (show placeholder)
+  const breakdownEl = document.getElementById('resultBreakdown');
+  breakdownEl.innerHTML = '';
+
+  const teaserItems = [
+    { name: 'Grade', value: preview?.grade || '-' },
+    { name: 'Risk Level', value: riskLevel },
+    { name: 'Tradeable', value: preview?.tradeable ? 'Yes' : 'No' },
+    { name: 'Flags', value: preview?.flagsDetected > 0 ? `${preview.flagsDetected} detected` : 'None' },
+    { name: 'Score Range', value: teaser?.scoreRange || '??-??' }
+  ];
+
+  teaserItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'breakdown-item';
+    div.innerHTML = `
+      <div class="breakdown-name">${item.name}</div>
+      <div class="breakdown-score">${item.value}</div>
+    `;
+    breakdownEl.appendChild(div);
+  });
+
+  // Teaser message and upgrade CTA
+  const risksEl = document.getElementById('resultRisks');
+  risksEl.innerHTML = '';
+
+  // Add teaser message
+  if (teaser?.message) {
+    const div = document.createElement('div');
+    div.className = 'risk-item';
+    div.innerHTML = `<span>ℹ️</span> ${teaser.message}`;
+    risksEl.appendChild(div);
+  }
+
+  // Add upgrade CTA
+  const ctaDiv = document.createElement('div');
+  ctaDiv.className = 'risk-item positive-item';
+  ctaDiv.innerHTML = `<span>🔓</span> <strong>Unlock full analysis:</strong> ${teaser?.unlock || 'Get exact score and detailed breakdown'}`;
+  risksEl.appendChild(ctaDiv);
+
+  // Add price info
+  const priceDiv = document.createElement('div');
+  priceDiv.className = 'risk-item positive-item';
+  priceDiv.innerHTML = `<span>💰</span> Price: <strong>${upgrade?.price || '$0.01'}</strong> via x402 micropayment`;
+  risksEl.appendChild(priceDiv);
+
+  demoResult.classList.remove('hidden');
+}
+
+// Show Full Result (from paid /analyze endpoint)
 function showResult(data) {
   const { token, trustScore, breakdown, riskFactors, positiveFactors } = data;
 

@@ -131,15 +131,38 @@ export class OnChainLedger {
     throw new OnChainLedgerError('Wallet does not support sendTransaction', 402);
   }
 
-  // ==================== FREE ENDPOINTS ====================
+  // ==================== FREE ENDPOINTS (TEASER) ====================
 
   /**
-   * Get basic trust score (FREE - no payment required)
+   * Get trust score preview (FREE - no payment required)
+   * Returns TEASER data: grade, risk level, tradeable status, flags count
+   * Exact score is hidden - use analyze() for full data
+   *
    * @param {string} tokenAddress - Solana token mint address
-   * @returns {Promise<ScoreResponse>}
+   * @returns {Promise<TeaserResponse>} Teaser with grade/riskLevel (score hidden)
+   *
+   * @example
+   * const teaser = await client.getScore('DezXAZ...');
+   * console.log(teaser.preview.grade); // 'A'
+   * console.log(teaser.preview.riskLevel); // 'LOW'
+   * // teaser.preview does NOT contain exact score
    */
   async getScore(tokenAddress) {
     return this._request('GET', `/score/${tokenAddress}`);
+  }
+
+  /**
+   * Get free comparison preview (FREE - no payment required)
+   * Returns TEASER: grades and risk levels, exact scores hidden
+   * Use compare() with payment for full data
+   *
+   * @param {string[]} tokenAddresses - Array of 2-5 token addresses
+   * @returns {Promise<CompareTeaserResponse>} Teaser comparison
+   */
+  async comparePreview(tokenAddresses) {
+    return this._request('POST', '/compare', {
+      body: { tokens: tokenAddresses }
+    });
   }
 
   /**
@@ -213,21 +236,60 @@ export class OnChainLedger {
   // ==================== UTILITY METHODS ====================
 
   /**
-   * Check if a token is safe to trade (convenience method)
+   * Check if a token is safe to trade (uses FREE teaser data)
+   * Uses grade-based assessment since exact score is hidden in teaser
+   *
    * @param {string} tokenAddress - Token to check
-   * @param {number} [minScore=70] - Minimum acceptable score
-   * @returns {Promise<{safe: boolean, score: number, grade: string, reason: string}>}
+   * @param {string} [minGrade='B'] - Minimum acceptable grade ('A+', 'A', 'B', 'C', 'D', 'F')
+   * @returns {Promise<{safe: boolean, grade: string, riskLevel: string, tradeable: boolean, reason: string}>}
+   *
+   * @example
+   * const { safe, reason } = await client.isSafe('DezXAZ...', 'B');
+   * if (!safe) console.log('AVOID:', reason);
    */
-  async isSafe(tokenAddress, minScore = 70) {
+  async isSafe(tokenAddress, minGrade = 'B') {
     const result = await this.getScore(tokenAddress);
+    const gradeOrder = { 'A+': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'F': 1 };
+
+    const tokenGrade = result.preview?.grade || 'F';
+    const tokenGradeValue = gradeOrder[tokenGrade] || 0;
+    const minGradeValue = gradeOrder[minGrade] || 4;
+
+    const safe = tokenGradeValue >= minGradeValue;
 
     return {
-      safe: result.score >= minScore,
-      score: result.score,
-      grade: result.grade,
-      reason: result.score >= minScore
-        ? `Token scored ${result.score}/100 (${result.grade}) - meets minimum threshold of ${minScore}`
-        : `Token scored ${result.score}/100 (${result.grade}) - below minimum threshold of ${minScore}`
+      safe,
+      grade: tokenGrade,
+      riskLevel: result.preview?.riskLevel || 'UNKNOWN',
+      tradeable: result.preview?.tradeable ?? false,
+      reason: safe
+        ? `Token graded ${tokenGrade} (${result.preview?.riskLevel || 'UNKNOWN'} risk) - meets minimum grade of ${minGrade}`
+        : `Token graded ${tokenGrade} (${result.preview?.riskLevel || 'UNKNOWN'} risk) - below minimum grade of ${minGrade}`
+    };
+  }
+
+  /**
+   * Check if a token is safe using PAID full analysis (exact score)
+   * Use this when you need precise score-based decisions
+   *
+   * @param {string} tokenAddress - Token to check
+   * @param {number} [minScore=70] - Minimum acceptable score (0-100)
+   * @param {string} [paymentSignature] - Pre-paid transaction signature
+   * @returns {Promise<{safe: boolean, score: number, grade: string, reason: string}>}
+   */
+  async isSafeWithScore(tokenAddress, minScore = 70, paymentSignature = null) {
+    const result = await this.analyze(tokenAddress, paymentSignature);
+
+    const score = result.trustScore?.score || 0;
+    const grade = result.trustScore?.grade || 'F';
+
+    return {
+      safe: score >= minScore,
+      score,
+      grade,
+      reason: score >= minScore
+        ? `Token scored ${score}/100 (${grade}) - meets minimum threshold of ${minScore}`
+        : `Token scored ${score}/100 (${grade}) - below minimum threshold of ${minScore}`
     };
   }
 

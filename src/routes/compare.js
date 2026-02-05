@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { calculateTrustScore } from '../services/trustscore.js';
 import { isValidSolanaAddress } from '../middleware/validation.js';
+import { getPreviewData } from './score.js';
 
 const router = Router();
 
@@ -28,12 +29,10 @@ function generateRecommendation(comparison) {
     recommendation = `${winner.token} and ${runnerUp.token} are very close in safety scores. `;
   }
 
-  // Add strengths
   if (winner.strengths.length > 0) {
     recommendation += `Key strengths: ${winner.strengths.slice(0, 2).join(', ')}. `;
   }
 
-  // Add caution if winner has weaknesses
   if (winner.weaknesses.length > 0) {
     recommendation += `However, note that ${winner.weaknesses[0].toLowerCase()}.`;
   }
@@ -52,10 +51,11 @@ function extractStrengthsAndWeaknesses(result) {
   };
 }
 
-// POST /compare
+// POST /compare - FREE teaser or PAID full response
 router.post('/', async (req, res) => {
   try {
     const { tokens } = req.body;
+    const hasPayment = !!req.headers['x-payment'];
 
     // Validate request
     if (!tokens || !Array.isArray(tokens)) {
@@ -110,6 +110,7 @@ router.post('/', async (req, res) => {
           address: tokenAddress,
           score: result.trustScore?.score || 0,
           grade: result.trustScore?.grade || 'F',
+          riskFactors: result.riskFactors || [],
           strengths,
           weaknesses
         };
@@ -120,6 +121,7 @@ router.post('/', async (req, res) => {
           address: tokenAddress,
           score: 0,
           grade: 'F',
+          riskFactors: [],
           strengths: [],
           weaknesses: ['Analysis failed'],
           error: error.message
@@ -128,8 +130,6 @@ router.post('/', async (req, res) => {
     });
 
     const results = await Promise.all(analysisPromises);
-
-    // Filter successful results for comparison
     const comparison = results.filter(r => r.success || r.score > 0);
 
     if (comparison.length < 2) {
@@ -139,14 +139,50 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Find winner (highest score)
+    // Sort by score to find winner
     const sorted = [...comparison].sort((a, b) => b.score - a.score);
     const winner = sorted[0];
 
-    // Generate AI recommendation
+    // FREE TEASER RESPONSE (no X-Payment header)
+    if (!hasPayment) {
+      const teaserComparison = comparison.map(c => {
+        const preview = getPreviewData(c.score, c.riskFactors);
+        return {
+          token: {
+            address: c.address,
+            symbol: c.token
+          },
+          grade: preview.grade,
+          riskLevel: preview.riskLevel,
+          score: '??/100'
+        };
+      });
+
+      // Determine safer choice by grade
+      const gradeOrder = { 'A+': 6, 'A': 5, 'B': 4, 'C': 3, 'D': 2, 'F': 1 };
+      const sortedByGrade = [...teaserComparison].sort((a, b) =>
+        (gradeOrder[b.grade] || 0) - (gradeOrder[a.grade] || 0)
+      );
+
+      return res.json({
+        comparison: teaserComparison,
+        preview: {
+          saferChoice: sortedByGrade[0].token.symbol,
+          gradeDifference: `${sortedByGrade[0].grade} vs ${sortedByGrade[sortedByGrade.length - 1].grade}`,
+          message: `${sortedByGrade[0].token.symbol} appears ${sortedByGrade[0].grade === sortedByGrade[1]?.grade ? 'equally safe' : 'safer'} based on grade comparison`
+        },
+        upgrade: {
+          message: 'Get exact scores, full comparison with strengths/weaknesses, and detailed recommendation',
+          price: '$0.015',
+          endpoint: 'POST /compare with X-Payment header',
+          protocol: 'x402'
+        }
+      });
+    }
+
+    // PAID FULL RESPONSE (has X-Payment header)
     const recommendation = generateRecommendation(comparison);
 
-    // Build winner object with reason
     const winnerObj = {
       token: winner.token,
       address: winner.address,
@@ -154,7 +190,6 @@ router.post('/', async (req, res) => {
       reason: `Highest trust score (${winner.score}/100)`
     };
 
-    // Add reason details
     if (winner.strengths.length > 0) {
       winnerObj.reason += `, ${winner.strengths[0].toLowerCase()}`;
     }
@@ -178,7 +213,8 @@ router.post('/', async (req, res) => {
       recommendation,
       metadata: {
         comparedAt: new Date().toISOString(),
-        tokenCount: comparison.length
+        tokenCount: comparison.length,
+        paid: true
       }
     };
 

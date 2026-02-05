@@ -30,21 +30,42 @@ curl -X POST https://onchainledger-production.up.railway.app/analyze/DezXAZ8z7Pn
 | `POST` | `/analyze/batch` | x402 | $0.006-0.01 | Batch analysis (volume discounts) |
 | `POST` | `/compare` | x402 | $0.015 | Token comparison with AI recommendation |
 
-### Free Score Endpoint
+### Free Score Endpoint (Teaser)
+
+The free `/score` endpoint returns a **teaser preview** - showing grade and risk level but hiding the exact score to encourage paid upgrades.
 
 ```bash
 GET /score/{tokenAddress}
 
-# Response:
+# Response (TEASER - exact score hidden):
 {
-  "token": "DezXAZ8z7...",
-  "symbol": "BONK",
-  "score": 88,
-  "grade": "A",
-  "verdict": "HIGH CONFIDENCE",
-  "message": "For full analysis, use POST /analyze/:token"
+  "token": {
+    "address": "DezXAZ8z7...",
+    "symbol": "BONK",
+    "name": "Bonk"
+  },
+  "preview": {
+    "grade": "A",
+    "riskLevel": "LOW",
+    "tradeable": true,
+    "flagsDetected": 1
+  },
+  "teaser": {
+    "scoreRange": "80-89",
+    "message": "This token scored in the A range with LOW risk level. We detected 1 potential flag.",
+    "unlock": "Get exact score (XX/100), full breakdown, and detailed risk analysis for $0.01"
+  },
+  "upgrade": {
+    "endpoint": "POST /analyze/DezXAZ8z7...",
+    "price": "$0.01",
+    "protocol": "x402",
+    "docs": "/docs"
+  }
 }
 ```
+
+**What's FREE:** Grade (A+, A, B, C, D, F), risk level (LOW/MEDIUM/HIGH/CRITICAL), tradeable status, flags count
+**What's PAID:** Exact score (XX/100), full breakdown, risk factors, positive indicators
 
 ### Batch Analysis
 
@@ -67,21 +88,47 @@ X-Payment: <transaction_signature>
 # 11+ tokens: $0.006 (40% off)
 ```
 
-### Token Comparison
+### Token Comparison (Free Teaser / Paid Full)
+
+The `/compare` endpoint supports **dual mode** - free teaser or paid full response.
 
 ```bash
+# FREE TEASER (no X-Payment header)
 POST /compare
 Content-Type: application/json
-X-Payment: <transaction_signature>
 
 {
   "tokens": ["token1_address", "token2_address"]
 }
 
-# Response includes:
-# - Side-by-side comparison
-# - Winner determination
-# - AI-generated recommendation
+# FREE Response (scores hidden):
+{
+  "comparison": [
+    { "token": { "address": "...", "symbol": "BONK" }, "grade": "A", "riskLevel": "LOW", "score": "??/100" },
+    { "token": { "address": "...", "symbol": "WIF" }, "grade": "B", "riskLevel": "MEDIUM", "score": "??/100" }
+  ],
+  "preview": {
+    "saferChoice": "BONK",
+    "gradeDifference": "A vs B",
+    "message": "BONK appears safer based on grade comparison"
+  },
+  "upgrade": { "price": "$0.015", "protocol": "x402" }
+}
+
+# PAID FULL (with X-Payment header)
+POST /compare
+Content-Type: application/json
+X-Payment: <transaction_signature>
+
+# PAID Response:
+{
+  "comparison": [
+    { "token": "BONK", "score": 85, "grade": "A", "strengths": [...], "weaknesses": [...] },
+    { "token": "WIF", "score": 72, "grade": "B", "strengths": [...], "weaknesses": [...] }
+  ],
+  "winner": { "token": "BONK", "score": 85, "reason": "..." },
+  "recommendation": "BONK is notably safer with a 13 point advantage..."
+}
 ```
 
 ### Request

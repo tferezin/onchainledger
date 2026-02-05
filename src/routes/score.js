@@ -40,7 +40,50 @@ function setCachedScore(tokenAddress, data) {
   });
 }
 
-// GET /score/:tokenAddress - FREE endpoint
+// Convert score to teaser preview data (hide exact score)
+function getPreviewData(score, riskFactors = []) {
+  // Grade (keep this - it's vague enough)
+  const grade = score >= 90 ? 'A+' :
+                score >= 80 ? 'A' :
+                score >= 70 ? 'B' :
+                score >= 60 ? 'C' :
+                score >= 50 ? 'D' : 'F';
+
+  // Score range (vague, not exact)
+  const scoreRange = score >= 90 ? '90-100' :
+                     score >= 80 ? '80-89' :
+                     score >= 70 ? '70-79' :
+                     score >= 60 ? '60-69' :
+                     score >= 50 ? '50-59' : '0-49';
+
+  // Risk level (vague category, not exact score)
+  const riskLevel = score >= 80 ? 'LOW' :
+                    score >= 60 ? 'MEDIUM' :
+                    score >= 40 ? 'HIGH' : 'CRITICAL';
+
+  // Tradeable (simple boolean)
+  const tradeable = score >= 50;
+
+  // Flags count (teaser - how many issues found)
+  const flagsDetected = riskFactors.length;
+
+  return { grade, scoreRange, riskLevel, tradeable, flagsDetected };
+}
+
+// Generate teaser message
+function getTeaserMessage(grade, riskLevel, flagsDetected) {
+  let message = `This token scored in the ${grade} range with ${riskLevel} risk level.`;
+
+  if (flagsDetected > 0) {
+    message += ` We detected ${flagsDetected} potential flag${flagsDetected > 1 ? 's' : ''}.`;
+  } else {
+    message += ' No major flags detected.';
+  }
+
+  return message;
+}
+
+// GET /score/:tokenAddress - FREE teaser endpoint
 router.get('/:tokenAddress', freeScoreRateLimit, async (req, res) => {
   try {
     const { tokenAddress } = req.params;
@@ -62,17 +105,36 @@ router.get('/:tokenAddress', freeScoreRateLimit, async (req, res) => {
     // Calculate trust score
     const result = await calculateTrustScore(tokenAddress);
 
-    // Return minimal data for free endpoint
+    const score = result.trustScore?.score ?? 0;
+    const riskFactors = result.riskFactors || [];
+
+    // Get teaser preview (hides exact score)
+    const preview = getPreviewData(score, riskFactors);
+
+    // Build teaser response
     const response = {
-      token: tokenAddress,
-      symbol: result.token?.symbol || 'UNKNOWN',
-      name: result.token?.name || 'Unknown Token',
-      score: result.trustScore?.score ?? 0,
-      grade: result.trustScore?.grade || 'F',
-      verdict: result.trustScore?.verdict || 'UNKNOWN',
-      message: 'For full analysis with risk breakdown, use POST /analyze/:token (x402 payment required)',
-      cachedAt: new Date().toISOString(),
-      cacheExpiresIn: '30 minutes'
+      token: {
+        address: tokenAddress,
+        symbol: result.token?.symbol || 'UNKNOWN',
+        name: result.token?.name || 'Unknown Token'
+      },
+      preview: {
+        grade: preview.grade,
+        riskLevel: preview.riskLevel,
+        tradeable: preview.tradeable,
+        flagsDetected: preview.flagsDetected
+      },
+      teaser: {
+        scoreRange: preview.scoreRange,
+        message: getTeaserMessage(preview.grade, preview.riskLevel, preview.flagsDetected),
+        unlock: 'Get exact score (XX/100), full breakdown, and detailed risk analysis for $0.01'
+      },
+      upgrade: {
+        endpoint: `POST /analyze/${tokenAddress}`,
+        price: '$0.01',
+        protocol: 'x402',
+        docs: '/docs'
+      }
     };
 
     // Cache the response
@@ -89,3 +151,4 @@ router.get('/:tokenAddress', freeScoreRateLimit, async (req, res) => {
 });
 
 export default router;
+export { getPreviewData };
