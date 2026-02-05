@@ -1,16 +1,21 @@
 import { Router } from 'express';
 import { calculateTrustScore } from '../services/trustscore.js';
 import { getCache, setCache, getCacheExpiration } from '../utils/cache.js';
-import { SOLANA_ADDRESS_REGEX } from '../utils/constants.js';
+import { validateTokenAddress, handleValidationErrors, isValidSolanaAddress } from '../middleware/validation.js';
+import { createSafeError, logError } from '../utils/errors.js';
 
 const router = Router();
 
-router.post('/:tokenAddress', async (req, res) => {
+router.post('/:tokenAddress', validateTokenAddress, handleValidationErrors, async (req, res) => {
   try {
     const { tokenAddress } = req.params;
 
-    if (!SOLANA_ADDRESS_REGEX.test(tokenAddress)) {
-      return res.status(400).json({ error: 'Invalid Solana address format' });
+    // Additional validation (defense in depth)
+    if (!isValidSolanaAddress(tokenAddress)) {
+      return res.status(400).json({
+        error: 'Validation Error',
+        message: 'Invalid Solana address format'
+      });
     }
 
     const cached = getCache(tokenAddress);
@@ -28,8 +33,14 @@ router.post('/:tokenAddress', async (req, res) => {
     setCache(tokenAddress, result);
     res.json(result);
   } catch (error) {
-    console.error('Analysis error:', error.message);
-    res.status(500).json({ error: 'Analysis failed', message: error.message });
+    logError(error, {
+      path: req.path,
+      method: req.method
+    });
+
+    // Don't expose internal error details
+    const safeError = createSafeError(error, 'EXTERNAL_API');
+    res.status(500).json(safeError);
   }
 });
 
