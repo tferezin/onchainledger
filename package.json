@@ -12,7 +12,12 @@
     "dev": "node --watch src/index.js",
     "build": "echo 'No build step required'"
   },
-  "keywords": ["solana", "token", "analysis", "trustscore"],
+  "keywords": [
+    "solana",
+    "token",
+    "analysis",
+    "trustscore"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
@@ -20,6 +25,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "node-cache": "^5.1.2"
+    "node-cache": "^5.1.2",
+    "x402-express": "^1.1.0"
   }
 }
