@@ -23,7 +23,7 @@ const freeScoreRateLimit = rateLimit({
     }
     return req.ip || 'unknown';
   },
-  validate: { ipKeyGenerator: false }
+  validate: { keyGeneratorIpFallback: false }
 });
 
 // Cache for free scores (30 min TTL)

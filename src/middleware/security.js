@@ -21,7 +21,7 @@ export const rateLimiter = rateLimit({
     }
     return req.ip || 'unknown';
   },
-  validate: { ipKeyGenerator: false }
+  validate: { keyGeneratorIpFallback: false }
 });
 
 // Helmet for secure HTTP headers
