@@ -13,6 +13,7 @@ import { secureErrorHandler } from './utils/errors.js';
 // Routes
 import healthRouter from './routes/health.js';
 import analyzeRouter from './routes/analyze.js';
+import scoreRouter from './routes/score.js';
 import { createX402Middleware } from './middleware/x402.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -52,6 +53,9 @@ export function createServer() {
   // 10. Routes
   // Health check - free, no payment required
   app.use('/health', healthRouter);
+
+  // Free score endpoint - no payment required
+  app.use('/score', scoreRouter);
 
   // x402 payment middleware for analyze routes
   const x402 = createX402Middleware();
