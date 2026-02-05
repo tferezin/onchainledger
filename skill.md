@@ -9,19 +9,80 @@
 ## Quick Start
 
 ```bash
-# Get TrustScore for any Solana token
+# FREE: Get basic trust score (no payment required)
+curl https://onchainledger-production.up.railway.app/score/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263
+
+# PAID: Get full analysis (x402 payment required)
 curl -X POST https://onchainledger-production.up.railway.app/analyze/DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263 \
   -H "X-Payment: YOUR_TX_SIGNATURE"
 ```
 
 ---
 
-## Endpoint
+## Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/analyze/{tokenAddress}` | Analyze token and return TrustScore |
-| `GET` | `/health` | Health check (free, no payment) |
+| Method | Path | Auth | Price | Description |
+|--------|------|------|-------|-------------|
+| `GET` | `/health` | Free | - | Health check |
+| `GET` | `/score/{token}` | Free | - | Basic trust score (rate limited) |
+| `GET` | `/docs` | Free | - | Swagger UI documentation |
+| `POST` | `/analyze/{token}` | x402 | $0.01 | Full analysis with breakdown |
+| `POST` | `/analyze/batch` | x402 | $0.006-0.01 | Batch analysis (volume discounts) |
+| `POST` | `/compare` | x402 | $0.015 | Token comparison with AI recommendation |
+
+### Free Score Endpoint
+
+```bash
+GET /score/{tokenAddress}
+
+# Response:
+{
+  "token": "DezXAZ8z7...",
+  "symbol": "BONK",
+  "score": 88,
+  "grade": "A",
+  "verdict": "HIGH CONFIDENCE",
+  "message": "For full analysis, use POST /analyze/:token"
+}
+```
+
+### Batch Analysis
+
+```bash
+POST /analyze/batch
+Content-Type: application/json
+X-Payment: <transaction_signature>
+
+{
+  "tokens": [
+    "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
+    "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+  ]
+}
+
+# Volume Discounts:
+# 1 token: $0.01 (no discount)
+# 2-5 tokens: $0.008 (20% off)
+# 6-10 tokens: $0.007 (30% off)
+# 11+ tokens: $0.006 (40% off)
+```
+
+### Token Comparison
+
+```bash
+POST /compare
+Content-Type: application/json
+X-Payment: <transaction_signature>
+
+{
+  "tokens": ["token1_address", "token2_address"]
+}
+
+# Response includes:
+# - Side-by-side comparison
+# - Winner determination
+# - AI-generated recommendation
+```
 
 ### Request
 
